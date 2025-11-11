@@ -36,13 +36,13 @@ time_series_forecasting/
    git clone https://github.com/<your-username>/time-series-forecasting.git
    cd time-series-forecasting
 2. **Create and activate a virtual environment**
- ```bash
-  python -m venv venv
-  # On Windows:
-  venv\Scripts\activate
-  # On macOS / Linux:
-  source venv/bin/activate
-```
+   ```bash
+   python -m venv venv
+   # On Windows:
+   venv\Scripts\activate
+   # On macOS / Linux:
+   source venv/bin/activate
+   ```
 3. **Install Dependencies**
    ```bash
    pip install -r requirements.txt
@@ -116,7 +116,7 @@ This repository follows best practices for reproducible forecasting research:
 * A ```requirements.txt``` file freezes exact dependency versions.
 * The code produces deterministic results (no random components).
 ---
-##🪪 License
+## 🪪 License
 This project is released under the MIT License.
 You are free to use, modify, and distribute it for research, educational, or personal projects.
 ---
