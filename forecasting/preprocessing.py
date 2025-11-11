@@ -22,12 +22,18 @@ def normalize_sectors(df: pd.DataFrame, col='Sector') -> pd.DataFrame:
 def transportation_from_biofuels(df: pd.DataFrame) -> pd.DataFrame:
     """Sostituisce i valori di Transportation con somma biocarburanti del mese."""
     df = df.copy()
-    bio_cols = ['Biodiesel', 'Other Biofuels', 'Renewable Diesel Fuel', 'Ethanol, Excluding Denaturants']
+    bio_cols = [
+        "Fuel Ethanol, Excluding Denaturant",
+        "Biodiesel",
+        "Renewable Diesel Fuel",
+        "Other Biofuels",
+    ]
     df['bio_sum'] = df[bio_cols].sum(axis=1)
     mask = df['Sector'].eq('Transportation')
     df.loc[mask, 'Total Renewable Energy'] = df.loc[mask, 'bio_sum']
     df.drop(columns=['bio_sum'], inplace=True)
     return df
+
 
 def pivot_sector_timeseries(df: pd.DataFrame,
                             value_col='Total Renewable Energy',

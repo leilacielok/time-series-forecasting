@@ -9,7 +9,7 @@ from forecasting.models import (seasonal_naive, forecast_rw_recursive,
                                 forecast_arima_recursive, forecast_sarima_recursive)
 from forecasting.evaluation import summarize_series
 
-CSV_PATH = 'data/summary_1970_2022.csv'
+CSV_PATH = 'data/US_renewable_forecasting.csv'
 ARIMA_ORDER_GRID = [(0,1,0),(1,1,0),(0,1,1),(1,1,1),(2,1,1)]
 
 def run():
