@@ -1,7 +1,10 @@
+# Benchmarks: RW, ARIMA, SARIMA
+
 import pandas as pd
 from typing import Tuple, List, Optional
 from statsmodels.tsa.arima.model import ARIMA
 from statsmodels.tsa.statespace.sarimax import SARIMAX
+
 
 def seasonal_naive(y: pd.Series, season_lag=12) -> pd.Series:
     return y.shift(season_lag).dropna()
@@ -55,3 +58,153 @@ def forecast_sarima_recursive(y: pd.Series,
                     ).fit(disp=False).get_forecast(1).predicted_mean.iloc[0]
         preds.append((t, fc)); h.loc[t] = y.loc[t]
     return pd.Series(dict(preds), name=y.name), best_s, best_S
+
+## Model to test: VAR
+
+import numpy as np
+import pandas as pd
+from statsmodels.tsa.api import VAR
+from forecasting.preprocessing import maybe_log_transform, invert_log_transform
+
+
+def forecast_var_recursive(
+    ts: pd.DataFrame,
+    target_col: str,
+    var_cols: list[str],
+    test_size_ratio: float = 0.2,
+    maxlags: int = 4,
+):
+    """
+    Stima un VAR(p) sulle colonne `var_cols` (in log) e produce
+    previsioni 1-step-ahead ricorsive per il periodo di test.
+    Ritorna:
+        y_test (livelli originali),
+        y_hat_lvl (previsioni in livelli per la sola colonna target_col).
+        :type test_size_ratio: object
+    """
+
+    # 1) Seleziona solo le colonne del sistema VAR
+    df = ts[var_cols].copy()
+
+    # 2) Log-transform per tutte le serie, usando maybe_log_transform
+    df_log = pd.DataFrame(index=df.index)
+    log_flags = {}
+
+    for col in var_cols:
+        y_raw = df[col].dropna()
+        y_log, logged = maybe_log_transform(y_raw)
+
+        # riallinea sull'indice completo (qui assumiamo niente buchi seri)
+        df_log[col] = y_log
+        log_flags[col] = logged
+
+    # 3) Split train/test in base al rapporto scelto
+    n = len(df_log)
+    n_test = int(np.floor(n * test_size_ratio))
+    n_train = n - n_test
+
+    train = df_log.iloc[:n_train]
+    test = df_log.iloc[n_train:]
+
+    # 4) Stima VAR sul train
+    model = VAR(train)
+    # usa maxlags come limite e lascia scegliere il p ottimale con AIC
+    results = model.fit(maxlags=maxlags, ic="aic")
+    p = results.k_ar
+
+    # 5) Previsioni 1-step-ahead ricorsive sul periodo di test
+    history = train.values.copy()
+    forecasts_log = []
+
+    for i in range(len(test)):
+        # previsioni in log per tutte le serie nel sistema
+        pred = results.forecast(y=history[-p:], steps=1)[0]
+        forecasts_log.append(pred)
+
+        # aggiorna la "storia" con il valore OSSERVATO (test) al tempo t
+        history = np.vstack([history, test.values[i]])
+
+    forecasts_log = np.array(forecasts_log)
+    forecasts_log_df = pd.DataFrame(
+        forecasts_log,
+        index=test.index,
+        columns=var_cols,
+    )
+
+    # 6) Recupera y_test in livelli e converte le previsioni del target
+    y_test = ts[target_col].reindex(test.index)
+
+    y_hat_log = forecasts_log_df[target_col]
+    y_hat_lvl = invert_log_transform(y_hat_log, log_flags[target_col])
+
+    return y_test, y_hat_lvl
+
+
+# Model to test: VAR-X
+from forecasting.preprocessing import maybe_log_transform, invert_log_transform
+from statsmodels.tsa.statespace.varmax import VARMAX
+
+def forecast_varx_recursive(
+    ts: pd.DataFrame,
+    exog: pd.DataFrame,
+    target_col: str,
+    var_cols: list[str],
+    test_size_ratio: float = 0.2,
+    maxlags: int = 1,
+):
+    """
+    Stima un VAR-X(p) usando VARMAX (order=(p,0)) sulle colonne `var_cols`
+    (endogene, in log) con regressori esogeni `exog` (già trasformati, es. log prezzi),
+    e produce previsioni out-of-sample per il periodo di test (1-step ahead
+    su tutto l'orizzonte) per la sola colonna target_col.
+
+    maxlags qui viene interpretato direttamente come p (ordine del VAR-X).
+    """
+
+    # 1) Endogene: solo le colonne del sistema VAR
+    df = ts[var_cols].copy()
+
+    # 2) Log-transform per tutte le serie endogene
+    df_log = pd.DataFrame(index=df.index)
+    log_flags = {}
+    for col in var_cols:
+        y_raw = df[col].dropna()
+        y_log, logged = maybe_log_transform(y_raw)
+        df_log[col] = y_log
+        log_flags[col] = logged
+
+    # 3) Allinea exog e endog (per sicurezza)
+    exog = exog.loc[df_log.index]
+
+    # 4) Split train/test
+    n = len(df_log)
+    n_test = int(np.floor(n * test_size_ratio))
+    n_train = n - n_test
+
+    endog_train = df_log.iloc[:n_train]
+    endog_test  = df_log.iloc[n_train:]
+    exog_train  = exog.iloc[:n_train]
+    exog_test   = exog.iloc[n_train:]
+
+    # 5) Stima VAR-X(p) con VARMAX (order=(p, 0))
+    p = maxlags  # interpretiamo maxlags come ordine p
+    model = VARMAX(endog_train, exog=exog_train, order=(p, 0), trend="c")
+    results = model.fit(disp=False)
+
+    # 6) Previsioni out-of-sample per tutto il periodo di test
+    # (usa storia di train e exog_test per generare forecast dinamici)
+    forecast_log = results.forecast(steps=len(endog_test), exog=exog_test)
+
+    # DataFrame con stesse colonne/indice
+    forecast_log_df = pd.DataFrame(
+        forecast_log,
+        index=endog_test.index,
+        columns=var_cols,
+    )
+
+    # 7) Torna ai livelli per il target
+    y_test = ts[target_col].reindex(endog_test.index)
+    y_hat_log = forecast_log_df[target_col]
+    y_hat_lvl = invert_log_transform(y_hat_log, log_flags[target_col])
+
+    return y_test, y_hat_lvl
