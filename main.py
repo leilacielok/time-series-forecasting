@@ -6,13 +6,14 @@ from forecasting.preprocessing import (
     load_csv, build_month_start_date, normalize_sectors,
     transportation_from_biofuels, pivot_sector_timeseries,
     trim_period, detect_numeric_targets,
-    maybe_log_transform, train_test_split_ts,
+    maybe_log_transform
 )
 from forecasting.models import (
     seasonal_naive, forecast_rw_recursive,
     forecast_arima_recursive, forecast_sarima_recursive,
     forecast_var_recursive,      # VAR
     forecast_varx_recursive,     # VAR-X
+    forecast_varx_wti_recursive,
 )
 from forecasting.evaluation import summarize_series, rmsfe
 
@@ -67,6 +68,7 @@ def run():
     mask = exog.notna().all(axis=1)
     ts_vx   = ts.loc[mask]     # endogene per VAR-X (1997+)
     exog_vx = exog.loc[mask]   # esogene per VAR-X (1997+)
+    exog_wti_vx  = exog[['log_WTI']].loc[mask]  # esogene solo WTI
 
     # === 3) Benchmark: sNaive, RW, ARIMA, SARIMA ===
     rows = []
@@ -104,8 +106,6 @@ def run():
         ))
 
     summary_df = pd.DataFrame(rows).set_index('Series').sort_values('RMSFE_SARIMA')
-    summary_df.to_csv(out / 'forecast_summary.csv', float_format='%.3f')
-    print('Saved:', (out / 'forecast_summary.csv').resolve())
 
     # === 4) VAR “puro”: solo i 5 settori ===
     var_rows = []
@@ -123,8 +123,6 @@ def run():
         })
 
     var_df = pd.DataFrame(var_rows).set_index("Series")
-    var_df.to_csv(out / 'forecast_summary_var.csv', float_format='%.3f')
-    print('Saved:', (out / 'forecast_summary_var.csv').resolve())
 
     # === 5) VAR-X con WTI + gas (sample 1997+) ===
     varx_rows = []
@@ -143,9 +141,35 @@ def run():
         })
 
     varx_df = pd.DataFrame(varx_rows).set_index("Series")
-    varx_df.to_csv(out / 'forecast_summary_varx.csv', float_format='%.3f')
-    print('Saved:', (out / 'forecast_summary_varx.csv').resolve())
 
+    # === 6) VAR-X con solo WTI (stesso sample 1997+) ===
+    varx_wti_rows = []
+    for col in VAR_SECTOR_COLS:
+        y_test_vx_wti, varx_wti_hat_lvl = forecast_varx_wti_recursive(
+            ts=ts_vx,          # solo 1997+
+            exog=exog_wti_vx,  # SOLO log_WTI
+            target_col=col,
+            var_cols=VAR_SECTOR_COLS,
+            test_size_ratio=TEST_SIZE_RATIO,
+            maxlags=4,
+        )
+        varx_wti_rows.append({
+            "Series": col,
+            "RMSFE_VARX_WTI": rmsfe(y_test_vx_wti, varx_wti_hat_lvl),
+        })
+
+    varx_wti_df = pd.DataFrame(varx_wti_rows).set_index("Series")
+
+    # === 7) Full RMSFE summary table (benchmarks + VAR + VARX) ===
+    summary_all_df = (
+        summary_df
+        .join(var_df, how="left")
+        .join(varx_df, how="left")
+        .join(varx_wti_df, how="left")
+    )
+
+    summary_all_df.to_csv(out / 'forecast_summary.csv', float_format='%.3f')
+    print('Saved:', (out / 'forecast_summary.csv').resolve())
 
 if __name__ == '__main__':
     run()

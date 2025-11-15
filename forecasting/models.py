@@ -1,9 +1,12 @@
 # Benchmarks: RW, ARIMA, SARIMA
 
+from typing import Tuple, List
 import pandas as pd
-from typing import Tuple, List, Optional
+import numpy as np
+from forecasting.preprocessing import maybe_log_transform, invert_log_transform
 from statsmodels.tsa.arima.model import ARIMA
 from statsmodels.tsa.statespace.sarimax import SARIMAX
+from statsmodels.tsa.statespace.varmax import VARMAX
 
 
 def seasonal_naive(y: pd.Series, season_lag=12) -> pd.Series:
@@ -19,8 +22,7 @@ def forecast_rw_recursive(y: pd.Series, include_drift: bool = True) -> pd.Series
         preds.append((t, pred)); h.loc[t] = y.loc[t]
     return pd.Series(dict(preds), name=y.name)
 
-def forecast_arima_recursive(y: pd.Series,
-                             order_grid: List[Tuple[int,int,int]]) -> Tuple[pd.Series, Tuple[int,int,int]]:
+def forecast_arima_recursive(y: pd.Series, order_grid: List[Tuple[int,int,int]]) -> Tuple[pd.Series, Tuple[int,int,int]]:
     y_tr = y.iloc[:-int(round(len(y)*0.2))]
     y_te = y.iloc[-int(round(len(y)*0.2)):]
     best, best_aic = None, float('inf')
@@ -60,11 +62,7 @@ def forecast_sarima_recursive(y: pd.Series,
     return pd.Series(dict(preds), name=y.name), best_s, best_S
 
 ## Model to test: VAR
-
-import numpy as np
-import pandas as pd
 from statsmodels.tsa.api import VAR
-from forecasting.preprocessing import maybe_log_transform, invert_log_transform
 
 
 def forecast_var_recursive(
@@ -141,9 +139,6 @@ def forecast_var_recursive(
 
 
 # Model to test: VAR-X
-from forecasting.preprocessing import maybe_log_transform, invert_log_transform
-from statsmodels.tsa.statespace.varmax import VARMAX
-
 def forecast_varx_recursive(
     ts: pd.DataFrame,
     exog: pd.DataFrame,
@@ -208,3 +203,50 @@ def forecast_varx_recursive(
     y_hat_lvl = invert_log_transform(y_hat_log, log_flags[target_col])
 
     return y_test, y_hat_lvl
+
+def forecast_varx_wti_recursive(
+    ts: pd.DataFrame,
+    exog: pd.DataFrame,
+    target_col: str,
+    var_cols: list[str],
+    test_size_ratio: float = 0.2,
+    maxlags: int = 1,
+):
+    """
+    Convenience wrapper around `forecast_varx_recursive` that uses only
+    the `log_WTI` column as exogenous regressor.
+
+    Parameters
+    ----------
+    ts : DataFrame
+        Endogenous series (sectors), same structure as for `forecast_varx_recursive`.
+    exog : DataFrame
+        DataFrame containing at least a 'log_WTI' column. Any additional
+        columns are ignored.
+    target_col : str
+        Name of the target series (one of `var_cols`).
+    var_cols : list of str
+        List of endogenous columns in the VAR-X system.
+    test_size_ratio : float
+        Fraction of the sample used for the test set.
+    maxlags : int
+        VAR order p (interpreted as in `forecast_varx_recursive`).
+
+    Returns
+    -------
+    y_test : Series
+        Realised values in levels for the target series.
+    y_hat_lvl : Series
+        Forecasts in levels for the target series.
+    """
+    # keep only log_WTI, even if exog has more columns
+    exog_wti = exog[['log_WTI']].copy()
+
+    return forecast_varx_recursive(
+        ts=ts,
+        exog=exog_wti,
+        target_col=target_col,
+        var_cols=var_cols,
+        test_size_ratio=test_size_ratio,
+        maxlags=maxlags,
+    )
