@@ -79,9 +79,8 @@ All preprocessing is handled through modular functions in ``` forecasting/prepro
 | **Random Walk (with drift)**    | Predicts next value as last observed + average drift.                      | ARIMA(0,1,0)  |
 | **ARIMA (p,d,q)**               | Non-seasonal autoregressive integrated moving average.                     | Box–Jenkins   |
 | **SARIMA (p,d,q)(P,D,Q)[s]**    | Seasonal ARIMA with seasonality `s = 12`.                                  | Statsmodels   |
-| **VAR (Vector Autoregression)** | Multivariate model capturing interdependencies among sector time series.  | statsmodels   |
-| **VARX**                        | VAR model extended with exogenous regressors (e.g., oil and gas prices).  | statsmodels   |
-
+| **VAR (Vector Autoregression)** | Multivariate model capturing interdependencies among sector time series.   | statsmodels   |
+| **VARX**                        | VAR model extended with exogenous regressors (e.g., oil and gas prices).   | statsmodels   |
 ```
 Each univariate benchmark model (up to SARIMA) is recursively re-estimated in a rolling one-step forecast fashion. Model selection within these benchmarks is automated via AIC minimization across a predefined parameter grid. For each sector, the best-performing benchmark is selected to compare against multivariate models VAR and VARX.
 ---
