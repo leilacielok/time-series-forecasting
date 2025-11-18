@@ -82,7 +82,9 @@ All preprocessing is handled through modular functions in ``` forecasting/prepro
 | **VAR (Vector Autoregression)** | Multivariate model capturing interdependencies among sector time series.   | statsmodels   |
 | **VARX**                        | VAR model extended with exogenous regressors (e.g., oil and gas prices).   | statsmodels   |
 ```
+
 Each univariate benchmark model (up to SARIMA) is recursively re-estimated in a rolling one-step forecast fashion. Model selection within these benchmarks is automated via AIC minimization across a predefined parameter grid. For each sector, the best-performing benchmark is selected to compare against multivariate models VAR and VARX.
+
 ---
 ## 📊 Evaluation Metrics
 The forecasting performance is evaluated on a hold-out test set (typically 20% of observations) using the following metrics:
@@ -92,15 +94,15 @@ The forecasting performance is evaluated on a hold-out test set (typically 20% o
 ---
 ## 🧠 Code Overview
 ```
-| Module / Notebook                 | Description                                                                                |
-|----------------------------------|--------------------------------------------------------------------------------------------|
-| **`forecasting/preprocessing.py`** | Handles data ingestion, cleaning, and transformation (date creation, sector normalization, pivoting). |
-| **`forecasting/models.py`**        | Implements Random Walk, ARIMA, SARIMA, and Seasonal Naïve models with recursive one-step forecasting, and also provides VAR/VARX for multivariate forecasting. |
-| **`forecasting/evaluation.py`**    | Provides forecast error metrics (MAFE, RMSFE) and summary table construction.            |
-| **`analysis_plots.ipynb`**         | Jupyter Notebook used for exploratory data analysis and visualization of model outputs. Creates and saves visual comparisons of actual vs predicted values, benchmark vs multivariate models, and residual diagnostics.  |
-| **`main.py`**                      | The central pipeline controller — loads data, runs models, evaluates forecasts, and exports summary results. |
+| Module / Notebook                  | Description                                                                                |
+|------------------------------------|--------------------------------------------------------------------------------------------|
+| **`forecasting/preprocessing.py`** | Handles data ingestion, cleaning, and transformation (date creation, sector normalization, pivoting).
+| **`forecasting/models.py`**        | Implements Random Walk, ARIMA, SARIMA, and Seasonal Naïve models with recursive one-step forecasting, and also provides VAR/VARX for multivariate forecasting.
+| **`forecasting/evaluation.py`**    | Provides forecast error metrics (MAFE, RMSFE) and summary table construction.   
+| **`analysis_plots.ipynb`**         | Jupyter Notebook used for exploratory data analysis and visualization of model outputs. Creates and saves visual comparisons of actual vs predicted values, benchmark vs multivariate models, and residual diagnostics.
+| **`main.py`**                      | The central pipeline controller — loads data, runs models, evaluates forecasts, and exports summary results.
 ```
-##🚀 Running the Full Pipeline
+## 🚀 Running the Full Pipeline
 To run the entire forecasting pipeline:
 ``` bash
 python main.py
@@ -109,7 +111,9 @@ If everything is configured correctly, you should see:
 ``` bash
 Saved: outputs/forecast_summary.csv
 ```
+
 The script will automatically create the ```outputs/``` folder if it does not exist.
+
 ---
 ## 🔍 Example Use Case
 Once the pipeline is running, you can explore:
@@ -124,8 +128,10 @@ This repository follows best practices for reproducible forecasting research:
 * The code produces deterministic results (no random components).
 ---
 ## 🪪 License
+
 This project is released under the **MIT License**.
 You are free to use, modify, and distribute it for research, educational, or personal projects.
+
 ---
 ## 🧾 Citation
 If you use this repository or adapt it for your research, please cite:
