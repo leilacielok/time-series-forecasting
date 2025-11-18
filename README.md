@@ -95,7 +95,7 @@ The forecasting performance is evaluated on a hold-out test set (typically 20% o
 ## 🧠 Code Overview
 ```
 | Module / Notebook                  | Description                                                                                
-|------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------
+|------------------------------------|----------------------
 | **`forecasting/preprocessing.py`** | Handles data ingestion, cleaning, and transformation (date creation, sector normalization, pivoting).
 | **`forecasting/models.py`**        | Implements Random Walk, ARIMA, SARIMA, and Seasonal Naïve models with recursive one-step forecasting, and also provides VAR/VARX for multivariate forecasting.
 | **`forecasting/evaluation.py`**    | Provides forecast error metrics (MAFE, RMSFE) and summary table construction.   
