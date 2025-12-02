@@ -15,7 +15,7 @@ from forecasting.models import (
     forecast_varx_recursive,     # VAR-X
     forecast_varx_wti_recursive,
 )
-from forecasting.evaluation import summarize_series, rmsfe
+from forecasting.evaluation import summarize_series, rmsfe, granger_causality_matrix
 
 CSV_PATH = 'data/US_renewable_forecasting.csv'
 MACRO_PATH = 'data/macro_vars.csv'
@@ -170,6 +170,27 @@ def run():
 
     summary_all_df.to_csv(out / 'forecast_summary.csv', float_format='%.3f')
     print('Saved:', (out / 'forecast_summary.csv').resolve())
+
+    # === 8) Granger causality analysis (VAR sectors, TRAIN sample only) ===
+    # Usiamo le 5 serie settoriali e il medesimo test_size_ratio
+    sector_data = ts[VAR_SECTOR_COLS].dropna()
+
+    # stessa logica di split degli univariati: usiamo solo il train per Granger
+    h_gc = max(1, int(round(len(sector_data) * TEST_SIZE_RATIO)))
+    gc_train = sector_data.iloc[:-h_gc]
+
+    print("\n[Granger] Running Granger causality analysis on VAR sectors (train sample)...")
+    gc_pvalues = granger_causality_matrix(
+        data=gc_train,
+        maxlags=4,     # coerente con il maxlags usato nei VAR
+        alpha=0.05,
+        ic="aic",
+        verbose=True,
+    )
+
+    gc_path = out / "granger_causality_pvalues.csv"
+    gc_pvalues.to_csv(gc_path, float_format="%.4f")
+    print("Saved:", gc_path.resolve())
 
 if __name__ == '__main__':
     run()
